@@ -20,6 +20,16 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
   # Filed as an issue and will wait to hear back from the Mission
   table(df$StartDate) # -- some dates read in as years, some as Excel converted numbers. Need to standardize
   
+  # Read in the spatial data to check the district names
+  geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
+
+  # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
+  geo_cw <- geo_df %>% 
+    select(PROVNO, KABKOTNO, KODE2010, PROVINSI, KABKOT, KabCode_Nu, KODE2010B) %>% 
+    st_set_geometry(NULL)
+  str(geo_cw)
+  
+  
 # Ignore dates and move on to reshape of the Funding data
   
   df_long <- df %>% 
@@ -39,12 +49,17 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
     
     # Create a tolerance range that marks if the new TEC is different from the old
     mutate(TEC_diff = ifelse(near(TEC, total_amt, tol = 2), 1, 0)) %>% 
+    
+    # Create dummy variables to filter the level of geography,
+    mutate(prov = ifelse(Granularity == "Provincial", 1, 0),
+           dist = ifelse(Granularity == "District", 1, 0), 
+           national = ifelse(Granularity == "Nationwide", 1, 0)) %>% 
+    
     select(IM, amount, TEC, total_amt, TEC_diff, everything()) %>% 
     arrange(IM, Fiscal_year) 
   
     # Summarise result to show which IMs have problems
     # -- NOTES: all the DCA mechanisms are pre-tallied 
-  options(digits = 7)
    df_long %>% 
      select(IM, TEC_diff, TEC, total_amt) %>% 
      filter(TEC_diff == 0) %>% 
@@ -56,6 +71,27 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
      ) %>% 
      arrange(desc(diff)) %>% 
      knitr::kable()
+  
+   # Print the Unique districts in the long data
+   df_long %>% 
+     select(District, Province) %>% 
+     group_by(District, Province) %>% 
+     filter(!is.na(District) | District != "NA ") %>% 
+     unique(.) %>% 
+     print(n = 100)
+   
+   
+
+# Create export for Tableau -----------------------------------------------
+write_csv(df_long, file.path(datapath, "IND_portfolio_2018_07.csv"))
+   
+   
+
+
+# Merge geo data attributes with tabular data -----------------------------
+
+df_long_geo <- df_long %>% 
+     left_join(x = ., y = geo_df, by = c("District" = "KABKOT"))
    
    
    
