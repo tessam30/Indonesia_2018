@@ -31,7 +31,6 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
   
   
 # Ignore dates and move on to reshape of the Funding data
-  
   df_long <- df %>% 
     gather(starts_with("FY"), 
            key = Fiscal_year, 
@@ -40,7 +39,7 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
 
 # Check that total estimated costs add up ---------------------------------
 
- df_long <- df_long %>% 
+  df_long <- df_long %>% 
     group_by(IM) %>% 
     
     # Create a TEC variable to check the math from Excel
@@ -58,7 +57,8 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
     select(IM, amount, TEC, total_amt, TEC_diff, everything()) %>% 
     arrange(IM, Fiscal_year) 
   
-    # Summarise result to show which IMs have problems
+
+  # Summarise result to show which IMs have problems
     # -- NOTES: all the DCA mechanisms are pre-tallied 
    df_long %>% 
      select(IM, TEC_diff, TEC, total_amt) %>% 
@@ -80,23 +80,42 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
      unique(.) %>% 
      print(n = 100)
    
+   # How many districts have information compared to the full universe of districts
+   # in a shapefile for the Admin2? 79 out of 503 do not join
+   df %>% select(District) %>% 
+     group_by(District) %>% 
+     tally() %>% 
+     anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT"))
+   
    
 
 # Create export for Tableau -----------------------------------------------
-write_csv(df_long, file.path(datapath, "IND_portfolio_2018_07.csv"))
-   
-   
-
+  write_csv(df_long, file.path(datapath, "IND_portfolio_2018_07.csv"))
 
 # Merge geo data attributes with tabular data -----------------------------
 
-df_long_geo <- df_long %>% 
-     left_join(x = ., y = geo_df, by = c("District" = "KABKOT"))
+   # Filter out only the district, drop those with missing values
+   df_long_dist <- df_long %>% 
+     filter(Granularity == "District" & !is.na(amount))
    
+   # Check that you can reproduce excel pivot table for BENGKULU
+   # -- SUCCESS: These numbers add up; Tableau seems be double counting things
+   df_long_dist %>% filter(Province == "BENGKULU") %>% 
+     group_by(District) %>% 
+     tally(amount)
    
-   
+  df_long_geo <- df_long_dist %>% 
+       left_join(x = ., y = geo_cw, by = c("District" = "KABKOT"))
+  glimpse(df_long_geo)
   
-
+  df_shapefile <- geo_df %>% 
+    right_join(x = ., y = df_long_dist, by = c("KABKOT" = "District"))
+  
+  #NOTES: The PROVNO, KODE2010 and PROVINSI   
+  write_csv(df_long_geo, file.path(datapath, "IND_portfolio_geojoin_2018_07.csv"))
+  
+  st_write(df_shapefile, file.path(datapath, "IND_portfolio_geojoin_2018_07.shp"))
+  
  
    
 
