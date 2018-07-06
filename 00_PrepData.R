@@ -96,7 +96,6 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
      # print and store in a new data frame
      print(n = 66) -> mismatches
    
-   
    geo_cw %>% 
      write_csv(., file.path(datapath, 
                             "Admin2_shapefile_atrributes.csv"))
@@ -106,21 +105,14 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
    df %>% select(District, Province) %>% 
      group_by(District) %>% 
      tally() %>% 
-     anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT"))
-   
-   
-   
-   
-   
+     anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT")
+ 
+  
 
 # Create export for Tableau -----------------------------------------------
   write_csv(df_long, file.path(datapath, "IND_portfolio_2018_07.csv"))
 
 # Merge geo data attributes with tabular data -----------------------------
-
-   # Filter out only the district, drop those with missing values
-   df_long_dist <- df_long %>% 
-     filter(Granularity == "District" & !is.na(amount))
    
    # Check that you can reproduce excel pivot table for BENGKULU
    # -- SUCCESS: These numbers add up; Tableau seems be double counting things
