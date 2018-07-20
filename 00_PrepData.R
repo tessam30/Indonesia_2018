@@ -22,6 +22,9 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
   # -- TODO: Need to standardize
   table(df$StartDate) # -- some dates read in as years, some as Excel converted numbers. 
  
+  # How many unique districts are there? 362 should match up to the original
+  df %>% group_by(Province, District) %>% tally() %>%  dim()
+  
   
   # Read in the spatial data to check the district names
   geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
@@ -105,7 +108,7 @@ ind_invest_data <- "All_FY15_18 copy.xlsx"
    df %>% select(District, Province) %>% 
      group_by(District) %>% 
      tally() %>% 
-     anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT")
+     anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT"))
  
   
 
