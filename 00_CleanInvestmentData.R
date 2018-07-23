@@ -18,12 +18,28 @@ df <- read_excel(file.path(datapath, ind_invest_data))
   str(df)
 
 # How many unique districts are there? 362 should match up to the original
-  df %>% group_by(Province, District) %>% tally() %>%  dim()
+  df %>% 
+    group_by(Province, District) %>% 
+    tally() %>%  
+    dim()
+  
+  # How many unique Province + District combinations? 326
+  # But there are three Districts that appear more than once, but mapped to a different Province
+  df_unique <- 
+    df %>% 
+    filter(!is.na(District)) %>% 
+    group_by(Province, District) %>% 
+    tally()
+  
+  # 35 are truly NA, looks like one has a backtick " ` " as a value;
+  # Fixing these in the Excel spreadsheet -- recommend using IDs moving forward
+  #df %>% filter(is.na(District)) %>% group_by(Province, District) %>% tally() %>% dim()
+  #str(table(df$District))
 
+  
 # Read in the spatial data to check the district names
   geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
 
-  
 
 # Investigate and reshape loaded data -------------------------------------
 
