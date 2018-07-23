@@ -40,21 +40,34 @@ df <- read_excel(file.path(datapath, ind_invest_data))
 # Read in the spatial data to check the district names
   geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
 
+  # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
+  # 502 Unique District
+  geo_cw <- geo_df %>% 
+    select(PROVNO, KABKOTNO, KODE2010, PROVINSI, KABKOT, KabCode_Nu, KODE2010B) %>% 
+    st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
+  str(geo_cw)  
+  
 
 # Compare Province and District Names / Numbers ---------------------------
   # Two tasks to do: 1)Compare number and names of Provinces in each dataset
   # 2) Compare districts and how many potentially should match (326 per above)
 
   prov_sf <- 
-
+    geo_cw %>% 
+    group_by(PROVINSI) %>% 
+    tally()
+  prov_df <- 
+    df %>% 
+    filter(Province != "NATIONWIDE") %>% 
+    group_by(Province) %>% tally()
+# Compare the two dataframes - NANGGROE ACEH DARUSSALAM should map to ACEH, KALIMANTAN UTARA IS MISSING
+  setdiff(prov_df$Province, prov_sf$PROVINSI)
+  # It appears that KALIMANTAN UTARA(NORTH), as of 2012, was carved out from East Kalimantan (KALIMANTAN TIMUR
+  
+  
 # Investigate and reshape loaded data -------------------------------------
 
-# Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
-  # 502 Unique District
-  geo_cw <- geo_df %>% 
-    select(PROVNO, KABKOTNO, KODE2010, PROVINSI, KABKOT, KabCode_Nu, KODE2010B) %>% 
-    st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
-  str(geo_cw)
+
   
   # How many unique Province + Districts?
   geo_cw %>% group_by(PROVINSI, KABKOT) %>% tally() %>% dim()
