@@ -25,6 +25,7 @@ df <- read_excel(file.path(datapath, ind_invest_data))
   
   # How many unique Province + District combinations? 326
   # But there are three Districts that appear more than once, but mapped to a different Province
+  # This appears to differ from the shapefile where there are 503 Districts, but 502 unique District names
   df_unique <- 
     df %>% 
     filter(!is.na(District)) %>% 
@@ -34,21 +35,30 @@ df <- read_excel(file.path(datapath, ind_invest_data))
   # 35 are truly NA, looks like one has a backtick " ` " as a value;
   # Fixing these in the Excel spreadsheet -- recommend using IDs moving forward
   #df %>% filter(is.na(District)) %>% group_by(Province, District) %>% tally() %>% dim()
-  #str(table(df$District))
-
+  #str(table(df$District)
   
 # Read in the spatial data to check the district names
   geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
 
 
+# Compare Province and District Names / Numbers ---------------------------
+  # Two tasks to do: 1)Compare number and names of Provinces in each dataset
+  # 2) Compare districts and how many potentially should match (326 per above)
+
+  prov_sf <- 
+
 # Investigate and reshape loaded data -------------------------------------
 
 # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
+  # 502 Unique District
   geo_cw <- geo_df %>% 
     select(PROVNO, KABKOTNO, KODE2010, PROVINSI, KABKOT, KabCode_Nu, KODE2010B) %>% 
     st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
   str(geo_cw)
-
+  
+  # How many unique Province + Districts?
+  geo_cw %>% group_by(PROVINSI, KABKOT) %>% tally() %>% dim()
+  geo_cw %>% group_by(KABKOT) %>% tally() %>% dim()
   # Ignore dates and move on to reshape of the Funding data
   df_long <- df %>% 
     gather(starts_with("FY"), 
@@ -91,13 +101,22 @@ df <- read_excel(file.path(datapath, ind_invest_data))
     arrange(desc(diff)) %>% 
     knitr::kable()  
 
+ tmp <-  df_long %>% 
+   mutate(Province )
+    select(District, Province) %>% 
+    group_by(District, Province) %>% 
+    arrange(desc(Province, District)) %>% 
+    unique(.) %>% 
+    anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT", "Province" = "PROVINSI")) 
+  
+  
   # Print the Unique districts in the long data
   # Used this for Mission to decide how they would like to recode the 66 problemsome districts
-  df_long %>% 
+    df_long %>% 
     select(District, Province) %>% 
     group_by(District, Province) %>% 
     # filter(!is.na(District) | District != "NA ") %>% 
     arrange(desc(Province, District)) %>% 
     unique(.) %>% 
-    left_join(x = ., y = geo_cw, by = c("District" = "KABKOT"))  
+    anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT")) 
   
