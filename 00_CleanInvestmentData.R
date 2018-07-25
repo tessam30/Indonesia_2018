@@ -10,7 +10,7 @@ dir.create("Data")
 datapath <- "Data"
 ind_invest_data <- "USAID Indonesia Investment Mapping.xlsx"
 
-df <- read_excel(file.path(datapath, ind_invest_data))
+df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
 
 # Checking for anything odd in the data
   Hmisc::describe(df) # -- check each variable for missing and uniqueness
