@@ -6,13 +6,9 @@
 # INSTALL LIBRARIES
 pacman::p_load("tidyverse", "lubridate", "sf", "extrafont", "readxl")
 
-# TODO: turn into a package and/or purrr/source these
+# TODO: turn into a package
   files <- c("compare_vars.R", "strip_geom.R", "fltr_func.R")  
   map(files, source)
-
-source("compare_vars.R")
-  source("strip_geom.R")
-  source("fltr_func.R")
 
 
   dir.create("Data")
@@ -54,15 +50,8 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   
   # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
   # 502 Unique District
-  admin2_cw <- admin2_df %>% 
-    select(OBJECTID, KABKOT, KABKOT_ID, PROVINSI) %>% 
-    st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
-  str(admin2_cw) # Is find if KABKOT_IDs are strings, same in df above  
-  
-  admin1_cw <- admin1_df %>% 
-    select(OBJECTID, PROVINSI, Region) %>% 
-    st_set_geometry(NULL) #
-  
+  admin2_cw <- strip_geom(admin2_df, OBJECTID, KABKOT, KABKOT_ID, PROVINSI)
+  admin1_cw <- strip_geom(admin1_df, OBJECTID, PROVINSI, Region)
   
 # Compare Province and District Names / Numbers ---------------------------
   # Two tasks to do: 1)Compare number and names of Provinces in each dataset
@@ -139,8 +128,18 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     arrange(desc(diff)) %>% 
     knitr::kable()  
 
-
-
+# Export different cuts of data
+  exp_list <- c("IND_investments_dist.csv",
+                "IND_investments_prov.csfv",
+                "IND_investments_natl.csv",
+                "IND_investments_all.csv")
+  
+  
+  df_long_dist <- fltr_func(df_long, Granularity == "District") 
+  df_long_prov <- fltr_func(df_long, Granularity == "Provincial")
+  df_long_natl <- fltr_func(df_long, Granularity == "Nationwide")
+  df_list <- c(df_)
+  
   
   
 
