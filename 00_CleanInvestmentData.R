@@ -129,16 +129,24 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     knitr::kable()  
 
 # Export different cuts of data
-  exp_list <- c("IND_investments_dist.csv",
-                "IND_investments_prov.csfv",
-                "IND_investments_natl.csv",
-                "IND_investments_all.csv")
+  # TODO: Functionalize the stuff below
   
+  IND_investments_dist <- fltr_func(df_long, Granularity == "District") 
+  IND_investments_prov <- fltr_func(df_long, Granularity == "Provincial")
+  IND_investments_natl <- fltr_func(df_long, Granularity == "Nationwide")
+
   
-  df_long_dist <- fltr_func(df_long, Granularity == "District") 
-  df_long_prov <- fltr_func(df_long, Granularity == "Provincial")
-  df_long_natl <- fltr_func(df_long, Granularity == "Nationwide")
-  df_list <- c(df_)
+  datalist = list(IND_investments_dist = IND_investments_dist, 
+                  IND_investments_prov = IND_investments_prov,
+                  IND_investments_natl = IND_investments_natl, 
+                  IND_investments_all = df_long)
+
+ # write the files to the data folder using the list names 
+  datalist %>%  
+    names() %>% 
+    map(., 
+        ~ write_csv(datalist[[.]], 
+        file.path(datapath, str_c(., ".csv"))))
   
   
   
