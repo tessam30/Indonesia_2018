@@ -5,6 +5,7 @@
 
 # INSTALL LIBRARIES
 pacman::p_load("tidyverse", "lubridate", "sf", "extrafont", "readxl")
+source("compare_vars.R")
 
 dir.create("Data")
 datapath <- "Data"
@@ -17,35 +18,29 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   names(df)
   str(df)
 
-# How many unique districts are there? 362 should match up to the original
-  df %>% 
-    group_by(Province, District) %>% 
-    tally() %>%  
-    dim()
+# How many unique districts are there? 324 KABKOT_IDs but 325 Districts. But it appears that one of the District entries is invalid "`" --> linked to Province == "JAWA TENGAH"
+  df <- df %>% 
+    mutate(District = ifelse(District != "`", District, NA_character_))
   
-  # How many unique Province + District combinations? 326
-  # But there are three Districts that appear more than once, but mapped to a different Province
-  # This appears to differ from the shapefile where there are 503 Districts, but 502 unique District names
-  df_unique <- 
-    df %>% 
+  # Now seems to be consistend across KABKOT_ID and District names
+  # Count is equivalent to group_by() + tally()
+  dist <- df %>% 
     filter(!is.na(District)) %>% 
-    group_by(Province, District) %>% 
-    tally()
-  
-  # 35 are truly NA, looks like one has a backtick " ` " as a value;
-  # Fixing these in the Excel spreadsheet -- recommend using IDs moving forward
-  #df %>% filter(is.na(District)) %>% group_by(Province, District) %>% tally() %>% dim()
-  #str(table(df$District)
-  
-# Read in the spatial data to check the district names
-  geo_df <- sf::read_sf(file.path(datapath, "IDN_BPS_Adm2Boundary.shp"))
+    count(Province, District, KABKOT_ID)
+  str(df)
 
+# Read in the spatial data to check the district names
+  admin2_df <- sf::read_sf(file.path(datapath, 
+                                  "BPS_2013Adm 2_Boundary",
+                                  "BPS_Admin2Boundary_2013.shp"))
+  names(admin2_df)
+  
   # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
   # 502 Unique District
-  geo_cw <- geo_df %>% 
-    select(PROVNO, KABKOTNO, KODE2010, PROVINSI, KABKOT, KabCode_Nu, KODE2010B) %>% 
+  admin2_cw <- admin2_df %>% 
+    select(OBJECTID, KABKOT, KABKOT_ID, PROVINSI) %>% 
     st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
-  str(geo_cw)  
+  str(admin2_cw) # Is find if KABKOT_IDs are strings, same in df above  
   
 
 # Compare Province and District Names / Numbers ---------------------------
@@ -53,25 +48,27 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   # 2) Compare districts and how many potentially should match (326 per above)
 
   prov_sf <- 
-    geo_cw %>% 
-    group_by(PROVINSI) %>% 
-    tally()
+    admin2_cw %>% 
+    # Use count to skip the group_by step
+    count(PROVINSI)
+
   prov_df <- 
     df %>% 
     filter(Province != "NATIONWIDE") %>% 
-    group_by(Province) %>% tally()
-# Compare the two dataframes - NANGGROE ACEH DARUSSALAM should map to ACEH, KALIMANTAN UTARA IS MISSING
-  setdiff(prov_df$Province, prov_sf$PROVINSI)
-  # It appears that KALIMANTAN UTARA(NORTH), as of 2012, was carved out from East Kalimantan (KALIMANTAN TIMUR
+    count(Province)
   
+  # Compare the two dataframes - East and North Province issue resolved with new shapefile
+  compare_vars(prov_df$Province, prov_sf$PROVINSI)
+  compare_vars(admin2_cw$KABKOT_ID, dist$KABKOT_ID)
+  
+  # How many Districts merge to the Admin2 shapefile data?
+  dist_join <- 
+    dist %>% 
+    left_join(x = ., y = admin2_cw, by = c("KABKOT_ID"))
+    
   
 # Investigate and reshape loaded data -------------------------------------
 
-
-  
-  # How many unique Province + Districts?
-  geo_cw %>% group_by(PROVINSI, KABKOT) %>% tally() %>% dim()
-  geo_cw %>% group_by(KABKOT) %>% tally() %>% dim()
   # Ignore dates and move on to reshape of the Funding data
   df_long <- df %>% 
     gather(starts_with("FY"), 
@@ -79,12 +76,17 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
            value = "amount") %>% 
     # filter out all rows that contain no information
     filter(amount != 0)
+  
+  # Mission asked for 3 data sets, Nation-wide, Provincal and District
+  unique(df_long$Granularity)
+
 
   # Check that total estimated costs add up ---------------------------------
   
-  df_long <- df_long %>% 
+  df_long <- 
+      df_long %>% 
     group_by(IM) %>% 
-    
+
     # Create a TEC variable to check the math from Excel
     mutate(total_amt = sum(amount, na.rm = "TRUE")) %>% 
     ungroup() %>% 
@@ -114,7 +116,23 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     arrange(desc(diff)) %>% 
     knitr::kable()  
 
- tmp <-  df_long %>% 
+
+# Test how well the subset data joins shapefiles --------------------------
+
+tpm <- 
+    df_long %>% 
+    filter(Granularity == "District", 
+           District != "") %>% 
+    select(KABKOT_ID, District, Province) %>% 
+    group_by(KABKOT_ID, Province) %>% 
+    unique(.) %>% 
+    left_join(x = ., y = admin2_cw, by = c("KABKOT_ID"))
+  
+  
+  
+  
+  
+  tmp <-  df_long %>% 
    mutate(Province )
     select(District, Province) %>% 
     group_by(District, Province) %>% 
