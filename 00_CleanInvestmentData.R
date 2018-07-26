@@ -5,11 +5,19 @@
 
 # INSTALL LIBRARIES
 pacman::p_load("tidyverse", "lubridate", "sf", "extrafont", "readxl")
-source("compare_vars.R")
 
-dir.create("Data")
-datapath <- "Data"
-ind_invest_data <- "USAID Indonesia Investment Mapping.xlsx"
+# TODO: turn into a package and/or purrr/source these
+  files <- c("compare_vars.R", "strip_geom.R", "fltr_func.R")  
+  map(files, source)
+
+source("compare_vars.R")
+  source("strip_geom.R")
+  source("fltr_func.R")
+
+
+  dir.create("Data")
+  datapath <- "Data"
+  ind_invest_data <- "USAID Indonesia Investment Mapping.xlsx"
 
 df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
 
@@ -19,8 +27,11 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   str(df)
 
 # How many unique districts are there? 324 KABKOT_IDs but 325 Districts. But it appears that one of the District entries is invalid "`" --> linked to Province == "JAWA TENGAH"
-  df <- df %>% 
-    mutate(District = ifelse(District != "`", District, NA_character_))
+  df <- 
+    df %>% 
+    mutate(District = ifelse(District != "`", 
+                             District, 
+                             NA_character_))
   
   # Now seems to be consistend across KABKOT_ID and District names
   # Count is equivalent to group_by() + tally()
@@ -35,6 +46,12 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
                                   "BPS_Admin2Boundary_2013.shp"))
   names(admin2_df)
   
+  # Now the Admin1 data
+  admin1_df <- sf::read_sf(file.path(datapath,
+                                     "BPS_2013Adm1_Boundary",
+                                     "BPS_Admin1Boundary_2013.shp"))
+  names(admin1_df)
+  
   # Create a crosswalk with the Kabkot codes, name, and province; Remove the geometry
   # 502 Unique District
   admin2_cw <- admin2_df %>% 
@@ -42,7 +59,11 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     st_set_geometry(NULL) # this is extra baggage and we do not need it, removing.
   str(admin2_cw) # Is find if KABKOT_IDs are strings, same in df above  
   
-
+  admin1_cw <- admin1_df %>% 
+    select(OBJECTID, PROVINSI, Region) %>% 
+    st_set_geometry(NULL) #
+  
+  
 # Compare Province and District Names / Numbers ---------------------------
   # Two tasks to do: 1)Compare number and names of Provinces in each dataset
   # 2) Compare districts and how many potentially should match (326 per above)
@@ -58,8 +79,9 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     count(Province)
   
   # Compare the two dataframes - East and North Province issue resolved with new shapefile
+  # There are no differences between the KABKOT IDs when joining, so things should be good to go
   compare_vars(prov_df$Province, prov_sf$PROVINSI)
-  compare_vars(admin2_cw$KABKOT_ID, dist$KABKOT_ID)
+  compare_vars(dist$KABKOT_ID, admin2_cw$KABKOT_ID)
   
   # How many Districts merge to the Admin2 shapefile data?
   dist_join <- 
@@ -69,7 +91,8 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   
 # Investigate and reshape loaded data -------------------------------------
 
-  # Ignore dates and move on to reshape of the Funding data
+  # Dates have been resolved by the Mission -- even POSIXct
+  # Reshape the data based on Fiscal year dates
   df_long <- df %>% 
     gather(starts_with("FY"), 
            key = Fiscal_year, 
@@ -117,37 +140,8 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
     knitr::kable()  
 
 
-# Test how well the subset data joins shapefiles --------------------------
 
-tpm <- 
-    df_long %>% 
-    filter(Granularity == "District", 
-           District != "") %>% 
-    select(KABKOT_ID, District, Province) %>% 
-    group_by(KABKOT_ID, Province) %>% 
-    unique(.) %>% 
-    left_join(x = ., y = admin2_cw, by = c("KABKOT_ID"))
   
   
-  
-  
-  
-  tmp <-  df_long %>% 
-   mutate(Province )
-    select(District, Province) %>% 
-    group_by(District, Province) %>% 
-    arrange(desc(Province, District)) %>% 
-    unique(.) %>% 
-    anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT", "Province" = "PROVINSI")) 
-  
-  
-  # Print the Unique districts in the long data
-  # Used this for Mission to decide how they would like to recode the 66 problemsome districts
-    df_long %>% 
-    select(District, Province) %>% 
-    group_by(District, Province) %>% 
-    # filter(!is.na(District) | District != "NA ") %>% 
-    arrange(desc(Province, District)) %>% 
-    unique(.) %>% 
-    anti_join(x = ., y = geo_cw, by = c("District" = "KABKOT")) 
+
   
