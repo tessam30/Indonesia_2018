@@ -92,9 +92,7 @@ df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
   # Mission asked for 3 data sets, Nation-wide, Provincal and District
   unique(df_long$Granularity)
 
-
   # Check that total estimated costs add up ---------------------------------
-  
   df_long <- 
       df_long %>% 
     group_by(IM) %>% 

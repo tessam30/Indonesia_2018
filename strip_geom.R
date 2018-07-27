@@ -1,5 +1,6 @@
-
 # Selects columns of spatial data frame, removes geometry, converts it to a tbl_df
+# inputs required are a dataframe and list of columns
+
 strip_geom <- function(df, ...) {
  
   if(class(df)[1] != "sf") {
