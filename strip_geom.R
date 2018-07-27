@@ -13,6 +13,7 @@ strip_geom <- function(df, ...) {
     select(!!!selecting) %>% 
     st_set_geometry(NULL)
   
+  #Show that operation worked as desired
   print(str(df_nogeom))
   return(df_nogeom)
 }
