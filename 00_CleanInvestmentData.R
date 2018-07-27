@@ -15,6 +15,10 @@ pacman::p_load("tidyverse", "lubridate", "sf", "extrafont", "readxl")
   datapath <- "Data"
   ind_invest_data <- "USAID Indonesia Investment Mapping.xlsx"
 
+  # Fix time zone issues
+  Sys.setenv(TZ = "America/New_York")
+  
+  
 df <- read_excel(file.path(datapath, ind_invest_data), sheet = "Location Coded")
 
 # Checking for anything odd in the data
